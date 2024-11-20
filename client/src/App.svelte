@@ -6,10 +6,8 @@
   let materials = [];
   let selectedMaterial = null;
   let defects = [];
-  let selectedDefect = null;
-  let defectParams = null;
-  let inputValue = "";
-  let evaluationColor = null;
+  let selectedDefects = [];
+  let defectParamsList = []; // Список параметров для всех выбранных дефектов
 
   // Запрашиваем список объектов при загрузке страницы
   onMount(async () => {
@@ -26,10 +24,8 @@
   async function selectObject(event) {
     selectedObject = event.target.value;
     selectedMaterial = null;
-    selectedDefect = null;
-    defectParams = null;
-    inputValue = "";
-    evaluationColor = null;
+    selectedDefects = [];
+    defectParamsList = [];
     defects = [];
     materials = [];
 
@@ -48,10 +44,8 @@
   // Обработчик выбора материала
   async function selectMaterial(event) {
     selectedMaterial = event.target.value;
-    selectedDefect = null;
-    defectParams = null;
-    inputValue = "";
-    evaluationColor = null;
+    selectedDefects = [];
+    defectParamsList = [];
     defects = [];
 
     const response = await fetch("/api", {
@@ -68,37 +62,51 @@
 
   // Обработчик выбора дефекта
   async function selectDefect(event) {
-    selectedDefect = event.target.value;
-    inputValue = "";
-    evaluationColor = null;
+    const defectId = event.target.value;
+
+    // Проверяем, если дефект уже выбран
+    if (selectedDefects.includes(defectId)) return;
+
+    selectedDefects = [...selectedDefects, defectId];
 
     const response = await fetch("/api", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action_type: "request_params",
-        query: selectedDefect,
+        query: defectId,
       }),
     });
     const data = await response.json();
-    console.log(data)
-    defectParams = data || null;
+
+    if (data) {
+      defectParamsList = [
+        ...defectParamsList,
+        {
+          defectId,
+          name: data.name,
+          measure: data.measure,
+          оценка: data.оценка,
+          inputValue: "",
+          evaluationColor: null,
+        },
+      ];
+    }
   }
 
   // Обработчик ввода значения в поле
-  function handleInput(event) {
-    console.log("PRINTING")
-    inputValue = parseFloat(event.target.value) || 0;
-    evaluationColor = getEvaluationColor(inputValue, defectParams?.оценка);
+  function handleInput(index, value) {
+    defectParamsList = defectParamsList.map((item, i) => {
+      if (i === index) {
+        const evaluationColor = getEvaluationColor(value, item.оценка);
+        return { ...item, inputValue: value, evaluationColor };
+      }
+      return item;
+    });
   }
 
   // Определение цвета оценки
   function getEvaluationColor(value, оценка) {
-    let maxval = Object.entries(оценка)[4][1][1]
-    if(maxval < value){
-                return("red")
-    }
-
     if (value === "") return null;
     if (!оценка) return null;
     for (const [key, range] of Object.entries(оценка)) {
@@ -107,8 +115,8 @@
         return getColorByGrade(parseInt(key));
       }
     }
+    return "red"; // Если значение выходит за пределы
   }
-
 
   // Возвращаем цвет в зависимости от оценки
   function getColorByGrade(grade) {
@@ -159,21 +167,25 @@
     </select>
   {/if}
 
-  <!-- Поле ввода параметра дефекта -->
-  {#if defectParams}
-    <label for="defect-input">{defectParams.name} в единицах измерения({defectParams.measure}):</label>
-    <input
-      id="defect-input"
-      type="number"
-      placeholder={`в единицах измерения ${defectParams.measure}`}
-      on:input={handleInput}
-    />
-    {#if evaluationColor}
-      <span
-        style="display: inline-block; position: absolute; width: 20px; height: 20px; border-radius: 50%; margin-left: 10px; background-color: {evaluationColor};"
-      ></span>
-    {/if}
-  {/if}
+  <!-- Параметры дефектов -->
+  {#each defectParamsList as defectParam, index}
+    <div>
+      <label for="input-{index}">
+        {defectParam.name} в единицах измерения ({defectParam.measure}):
+      </label>
+      <input
+        id="input-{index}"
+        type="number"
+        placeholder={`в единицах измерения ${defectParam.measure}`}
+        on:input={(e) => handleInput(index, parseFloat(e.target.value))}
+      />
+      {#if defectParam.evaluationColor}
+        <span
+          style="display: inline-block; position: relative; width: 20px; height: 20px; left: 45px; bottom: 45px;  border-radius: 50%; margin-left: 10px; background-color: {defectParam.evaluationColor};"
+        ></span>
+      {/if}
+    </div>
+  {/each}
 </main>
 
 <style>
@@ -182,7 +194,7 @@
     margin: 2em;
   }
 
-  label, select, input, p {
+  label, select, input {
     margin-bottom: 1em;
     display: block;
   }
