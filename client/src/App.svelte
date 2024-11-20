@@ -7,6 +7,9 @@
   let selectedMaterial = null;
   let defects = [];
   let selectedDefect = null;
+  let defectParams = null;
+  let inputValue = "";
+  let evaluationColor = null;
 
   // Запрашиваем список объектов при загрузке страницы
   onMount(async () => {
@@ -22,9 +25,13 @@
   // Обработчик выбора объекта
   async function selectObject(event) {
     selectedObject = event.target.value;
-    selectedMaterial = null; // Сбрасываем выбранный материал
-    selectedDefect = null; // Сбрасываем выбранный дефект
-    defects = []; // Очищаем список дефектов
+    selectedMaterial = null;
+    selectedDefect = null;
+    defectParams = null;
+    inputValue = "";
+    evaluationColor = null;
+    defects = [];
+    materials = [];
 
     const response = await fetch("/api", {
       method: "POST",
@@ -41,7 +48,11 @@
   // Обработчик выбора материала
   async function selectMaterial(event) {
     selectedMaterial = event.target.value;
-    selectedDefect = null; // Сбрасываем выбранный дефект
+    selectedDefect = null;
+    defectParams = null;
+    inputValue = "";
+    evaluationColor = null;
+    defects = [];
 
     const response = await fetch("/api", {
       method: "POST",
@@ -56,8 +67,59 @@
   }
 
   // Обработчик выбора дефекта
-  function selectDefect(event) {
+  async function selectDefect(event) {
     selectedDefect = event.target.value;
+    inputValue = "";
+    evaluationColor = null;
+
+    const response = await fetch("/api", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action_type: "request_params",
+        query: selectedDefect,
+      }),
+    });
+    const data = await response.json();
+    console.log(data)
+    defectParams = data || null;
+  }
+
+  // Обработчик ввода значения в поле
+  function handleInput(event) {
+    console.log("PRINTING")
+    inputValue = parseFloat(event.target.value) || 0;
+    evaluationColor = getEvaluationColor(inputValue, defectParams?.оценка);
+  }
+
+  // Определение цвета оценки
+  function getEvaluationColor(value, оценка) {
+    let maxval = Object.entries(оценка)[4][1][1]
+    if(maxval < value){
+                return("red")
+    }
+
+    if (value === "") return null;
+    if (!оценка) return null;
+    for (const [key, range] of Object.entries(оценка)) {
+      const [min, max] = range;
+      if (value >= min && value < max) {
+        return getColorByGrade(parseInt(key));
+      }
+    }
+  }
+
+
+  // Возвращаем цвет в зависимости от оценки
+  function getColorByGrade(grade) {
+    switch (grade) {
+      case 1: return "green";
+      case 2: return "yellowgreen";
+      case 3: return "yellow";
+      case 4: return "orange";
+      case 5: return "red";
+      default: return null;
+    }
   }
 </script>
 
@@ -97,8 +159,20 @@
     </select>
   {/if}
 
-  {#if selectedDefect}
-    <p>Вы выбрали дефект: {selectedDefect}</p>
+  <!-- Поле ввода параметра дефекта -->
+  {#if defectParams}
+    <label for="defect-input">{defectParams.name} в единицах измерения({defectParams.measure}):</label>
+    <input
+      id="defect-input"
+      type="number"
+      placeholder={`в единицах измерения ${defectParams.measure}`}
+      on:input={handleInput}
+    />
+    {#if evaluationColor}
+      <span
+        style="display: inline-block; position: absolute; width: 20px; height: 20px; border-radius: 50%; margin-left: 10px; background-color: {evaluationColor};"
+      ></span>
+    {/if}
   {/if}
 </main>
 
@@ -108,8 +182,13 @@
     margin: 2em;
   }
 
-  label, select, p {
+  label, select, input, p {
     margin-bottom: 1em;
     display: block;
+  }
+
+  input {
+    padding: 0.5em;
+    font-size: 1em;
   }
 </style>

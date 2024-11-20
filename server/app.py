@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
+import json
 
 app = Flask(__name__)
 
@@ -42,8 +43,10 @@ def get_parameters(defect_id):
     cursor = conn.cursor()
     cursor.execute('SELECT options_JSON FROM parameters WHERE defect_id = ?', (defect_id,))
     parameters = cursor.fetchone()
+    print("PARAMS!", parameters)
+    print("PARAMS!", parameters[0])
     conn.close()
-    return parameters
+    return json.loads(parameters[0])
 
 # Роуты API
 @app.route('/api', methods=['POST'])
@@ -68,9 +71,10 @@ def api():
             defects = get_avaliable_defects(construction_id, material_id)
             return jsonify({"defects": [dict(row) for row in defects]})
 
-        elif action_type == 'request_parameters':
+        elif action_type == 'request_params':
             parameters = get_parameters(query)
-            return jsonify({"parameters": parameters["options_JSON"] if parameters else None})
+            print(parameters)
+            return parameters
 
         else:
             return jsonify({"error": "Invalid action_type"}), 400
