@@ -1,14 +1,18 @@
 <script>
 
   import { onMount } from "svelte";
-  let objects = [];
-  let selectedObject = null;
-  let materials = [];
-  let selectedMaterial = null;
-  let defects = [];
-  let selectedDefects = [];
-  let defectParamsList = []; // Список параметров для всех выбранных дефектов
-
+  let {paneIndex, index, setColor, doHighlight} = $props();
+  let objects = $state([]);
+  let selectedObject = $state(null);
+  let materials = $state([]);
+  let selectedMaterial = $state(null);
+  let defects = $state([]);
+  let selectedDefects = $state([]);
+  let defectParamsList = $state([]); // Список параметров для всех выбранных дефектов
+  let higlightMarker = (should_i) => {
+    console.log("HIGHLIGHTING MARKER")
+    doHighlight(paneIndex, index, should_i)
+  }
   // Запрашиваем список объектов при загрузке страницы
   onMount(async () => {
     const response = await fetch("/api", {
@@ -99,6 +103,7 @@
     defectParamsList = defectParamsList.map((item, i) => {
       if (i === index) {
         const evaluationColor = getEvaluationColor(value, item.оценка);
+        setColor(evaluationColor);
         return { ...item, inputValue: value, evaluationColor };
       }
       return item;
@@ -130,12 +135,15 @@
     }
   }
 </script>
-<div>
+<div class="defect_selector obj-selector"
+  onmouseenter={() => higlightMarker(true)}
+  onmouseleave={() => higlightMarker(false)}
+>
   <!-- Селектор объектов -->
   {#if objects.length > 0}
-  <section>
+  <section >
     <label for="object-select">Выберите объект:</label>
-    <select id="object-select" on:change={selectObject}>
+    <select id="object-select" onchange={selectObject}>
       <option value="" disabled selected>Выберите объект</option>
       {#each objects as object}
         <option value={object.id}>{object.name}</option>
@@ -149,7 +157,7 @@
 
   <section>
     <label for="material-select">Выберите материал:</label>
-    <select id="material-select" on:change={selectMaterial}>
+    <select id="material-select" onchange={selectMaterial}>
       <option value="" disabled selected>Выберите материал</option>
       {#each materials as material}
         <option value={material.id}>{material.name}</option>
@@ -161,8 +169,8 @@
   <!-- Селектор дефектов -->
   {#if selectedMaterial && defects.length > 0}
   <section>
-    <label for="defect-select">Выберите дефект:</label>
-    <select id="defect-select" on:change={selectDefect}>
+    <!-- <label for="defect-select">Выберите дефект:</label> -->
+    <select id="defect-select" onchange={selectDefect}>
       <option value="" disabled selected>Выберите дефект</option>
       {#each defects as defect}
         <option value={defect.id}>{defect.name}</option>
@@ -183,13 +191,13 @@
         id="input-{index}"
         type="number"
         placeholder={`в единицах измерения ${defectParam.measure}`}
-        on:input={(e) => handleInput(index, parseFloat(e.target.value))}
+        oninput={(e) => handleInput(index, parseFloat(e.target.value))}
       />
-      {#if defectParam.evaluationColor}
+      <!-- {#if defectParam.evaluationColor}
         <span
           style="display: inline-block; position: relative; width: 20px; height: 20px; left: 45px; bottom: 45px;  border-radius: 50%; margin-left: 10px; background-color: {defectParam.evaluationColor};"
         ></span>
-      {/if}
+      {/if} -->
         </div>
     </div>
   {/each}
@@ -197,3 +205,30 @@
   </section>
 </div>
 
+<style>
+
+  .defect_selector {
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 20px 0px;
+    box-sizing: border-box;
+    background-color: #445;
+    margin: 10px;
+    color: white;
+    margin: 0 auto;
+  }
+  .defect_selector:hover {
+    background-color: #334;
+  }
+  .obj-selector label{
+    color: white;
+  }
+
+  .obj-selector option, .obj-selector select{
+    color: white;
+    background-color: #334;
+  }
+</style>
